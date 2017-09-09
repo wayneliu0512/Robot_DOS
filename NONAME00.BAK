@@ -1,0 +1,137 @@
+#include <dos.h>
+#include <stdio.h>
+#include <conio.h>
+#include <string.h>
+
+int main(int argc, char *argv[], char *envp[])
+{
+	int mode; //Catch Code ASCII
+	int PORT1; 
+	int cr = 0; //Send Code ASCII
+	
+	if(argc == 1)
+	{
+		printf("NONAME00 <OPTION> <COM>\n");
+		printf("<OPTION>:\n");
+		printf("	/? 	:Help.\n");
+		printf("	/b	:Tell server boot PASS.\n");
+		printf("	/r  :Send result to server.\n");
+		printf("<COM>:\n");
+		printf("	1	:Set COM1 port.\n");
+		printf("	2	:Set COM2 port.\n");
+		return 1;
+	}
+
+	if(strcmp(argv[1], "/?") == 0)
+	{
+		printf("NONAME00 <OPTION> <COM>\n");
+		printf("<OPTION>:\n");
+		printf("	/? 	:Help.\n");
+		printf("	/b	:Tell server boot PASS.\n");
+		printf("	/r  :Send result to server.\n");
+		printf("<COM>:\n");
+		printf("	1	:Set COM1 port.\n");
+		printf("	2	:Set COM2 port.\n");
+		return 0;		
+	}
+	else if(strcmp(argv[2], "1") == 0)
+	{
+		printf("Set COM1\n");
+		PORT1 = 0x3F8;
+	}
+	else if(strcmp(argv[2], "2") == 0)
+	{
+		printf("Set COM2\n");
+		PORT1 = 0x2F8;
+	}
+	else
+	{
+		printf("Command error.");		
+		return 1;
+	}
+	
+	if(strcmp(argv[1], "/b") == 0)
+	{
+		mode = 49; //ASCII=1
+		cr = 48;   //ASCII=0
+	}else if(strcmp(argv[1], "/r") == 0)
+	{
+		mode = 67; //ASCII=C
+		int i = 0;
+		
+		for(i = 0; envp[i] != NULL; i++)
+		{
+			if(strcmp(envp[i], "X=PASS") == 0)
+			{
+				printf("PASS");
+				cr = 80; //ASCII=P
+				break;
+			}else if(strcmp(envp[i], "X=FAIL") == 0)
+			{
+				printf("FAIL");
+				cr = 70; //ASCII=F
+				break;
+			}
+		}
+		
+		if(cr != 80)
+		{
+			cr = 70;
+		}
+		
+	}else
+	{
+		printf("Command error.");		
+		return 1;
+	}
+	
+	
+	int c;
+	int ch;
+	outportb(PORT1 + 1, 0); /* Turn off interrupts - Port1 */
+
+	/* PORT 1 - Communication Settings */
+
+	outportb(PORT1 + 3, 0x80); /* SET DLAB ON */
+	outportb(PORT1 + 0, 0x0C); /* Set Baud rate - Divisor Latch Low Byte */
+	/* Default 0x03 = 38,400 BPS */
+	/* 0x01 = 115,200 BPS */
+	/* 0x02 = 57,600 BPS */
+	/* 0x06 = 19,200 BPS */
+	/* 0x0C = 9,600 BPS */
+	/* 0x18 = 4,800 BPS */
+	/* 0x30 = 2,400 BPS */
+	outportb(PORT1 + 1, 0x00); /* Set Baud rate - Divisor Latch High Byte */
+	outportb(PORT1 + 3, 0x03); /* 8 Bits, No Parity, 1 Stop Bit */
+	outportb(PORT1 + 2, 0xC7); /* FIFO Control Register */
+	outportb(PORT1 + 4, 0x0B); /* Turn on DTR, RTS, and OUT2 */
+
+	printf("\nSample Comm's Program. Press ESC to quit \n");
+
+	do
+	{
+		c = inportb(PORT1 + 5); /* Check to see if char has been */
+		/* received. */
+		if (c &1)
+		{
+			ch = inportb(PORT1); /* If so, then get Char */
+			if(ch == mode)
+			{
+				printf("connected!");
+				return 0;
+			}
+
+		} /* Print Char to Screen */
+
+		outportb(PORT1, cr);
+		
+		if (kbhit())
+		{
+			ch = getch(); /* If key pressed, get Char */
+		//	outportb(PORT1, ch);
+		} /* Send Char to Serial Port */
+	}
+	while (ch != 27); /* Quit when ESC (ASC 27) is pressed */
+	
+    return 0;
+}
