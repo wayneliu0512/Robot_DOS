@@ -51,7 +51,7 @@ int main(int argc, char *argv[], char *envp[])//envp[] 是所有環境變數
             }
         }
 
-        if(strcmp(cr, "@PASSF") != 0)
+        if(strcmp(cr, "@") == 0)
         {
 			printf("Get nothing, fail\n");
             strcat(cr, "FAILF");
