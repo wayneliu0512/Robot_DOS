@@ -4,33 +4,42 @@
 #include <dos.h>
 #include <conio.h>
 
-#include <string.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <dos.h>
-#include <conio.h>
+//傳輸協定: 
+//內容前面加上@, 後面加上;, EX: @SATA;
+//如果是單一測試結束, 內容會是測試階段名稱後面加上/P 或是 /F, EX: @SATA/P;
+//如果是全部測試結束, 內容會是PASSF 或是 FAILF, EX: @PASSF;
 
 int PORT1;
-char cr[100] = "@"; //Send Code ASCII
+//內容前面加上@
+char cr[100] = "@"; 
 
+//程式使用說明
 void showProgramGuide();
-int startTest(const int &_argc, const char *_com, const char *_testStage);
-int finishTest(const int &_argc, const char *_com, const char *_fileName);
+
+//_argc: 檢查輸入參數用, _com: 檢查Com Port, _testStage: 測試階段名稱, _fileName: 藉由此檔案名稱找到這個測項的測試結果
+
+//開始測試前執行
+int startTest(const int &_argc, const char *_com, const char *_testStage);		
+//結束測試後執行																  
+int finishTest(const int &_argc, const char *_com, const char *_fileName, const char *_testStage);
+//所有測試結束
 int finalTest(const int &_argc, const char *_com);
+//檢查ComPort
 int settingCOM(const char *_str);
+//轉換成大寫後進行判斷
 void transferToUpperCase(char * const _str);
 
 int main(int argc, char *argv[], char *envp[])//envp[] 是所有環境變數
 {
-    if(strcmp(argv[1], "/s") == 0)
+    if(strcmp(argv[1], "/s") == 0)//開始測試前執行
     {
         if(startTest(argc, argv[2], argv[3]) == 0)
             return 1;
-    }else if(strcmp(argv[1], "/f") == 0)
+    }else if(strcmp(argv[1], "/f") == 0)//結束測試後執行
     {
-        if(finishTest(argc, argv[2], argv[3]) == 0)
+        if(finishTest(argc, argv[2], argv[4], argv[3]) == 0)
             return 1;
-    }else if(strcmp(argv[1], "/e") == 0)
+    }else if(strcmp(argv[1], "/e") == 0)//所有測試結束
     {
         if(finalTest(argc, argv[2]) == 0)
             return 1;
@@ -83,8 +92,10 @@ int main(int argc, char *argv[], char *envp[])//envp[] 是所有環境變數
     outportb(PORT1 + 2, 0xC7); /* FIFO Control Register */
     outportb(PORT1 + 4, 0x0B); /* Turn on DTR, RTS, and OUT2 */
 
+	//內容後面加上;
     strcat(cr, ";");
     int i;
+	//一個一個字元傳送出去
     for( i = 0; i < strlen(cr); i++ )
     {
         outportb( PORT1, cr[i] );
@@ -98,16 +109,18 @@ int main(int argc, char *argv[], char *envp[])//envp[] 是所有環境變數
 
 void showProgramGuide()
 {
-    printf("ARMTEST <OPTION> [COM] ( [TEST_STAGE] || [FILE_NAME] )\n");
+    printf("ARMTEST <OPTION> [COM] ( [TEST_STAGE] )( [FILE_NAME] )\n");
     printf("<OPTION>:\n");
-    printf("	\"/s\" [COM] [TEST_STAGE]   :Send each test stage start testing.\n");
-    printf("	\"/f\" [COM] [FILE_NAME]    :Send each testing finished.\n");
-    printf("	\"/e\" [COM]                :Send final test result.\n");
+    printf("	\"/s\" [COM] [TEST_STAGE]             :Send each test stage start testing.\n");
+    printf("	\"/f\" [COM] [TEST_STAGE] [FILE_NAME] :Send each testing finished.\n");
+    printf("	\"/e\" [COM]                          :Send final test result.\n");
     printf("[COM]:\n");
     printf("	\"1\"       :Set COM1 port.\n");
     printf("	\"2\"       :Set COM2 port.\n");
     printf("[TEST_STAGE]:\n");
     printf("    Key in which test stage is running right now.\n");
+    printf("[FILE_NAME]:\n");
+    printf("    Name of the test result file.\n");
 
 }
 
@@ -127,14 +140,22 @@ int startTest(const int &_argc, const char *_com, const char *_testStage)
         showProgramGuide();
         return 0;
     }
+	//字元不能超過13, 超過會傳不過去
+    if(strlen(_testStage) > 13)
+    {
+        printf("TestStage name is too long.\n");
+		showProgramGuide();
+        return 0;
+    }
 
     strcat(cr, _testStage); //TEST_STAGE
 	return 1;
 }	
-int finishTest(const int &_argc, const char *_com, const char *_fileName)
+
+int finishTest(const int &_argc, const char *_com, const char *_fileName, const char *_testStage)
 {
     //當command 下的數量不對時, Show help
-    if(_argc < 4)
+    if(_argc < 5)
     {
         printf("Invaild command \n");
         showProgramGuide();
@@ -147,8 +168,17 @@ int finishTest(const int &_argc, const char *_com, const char *_fileName)
         showProgramGuide();
         return 0;
     }
+	//字元不能超過13, 超過會傳不過去
+    if(strlen(_testStage) > 13)
+    {
+        printf("TestStage name is too long.\n");
+		showProgramGuide();
+        return 0;
+    }
 
-    char result[10] = "FAIL";
+    strcat(cr, _testStage); //TEST_STAGE
+
+    char result[10] = "/F";
 
     FILE *filePtr;
     //產生檔案路徑
@@ -172,7 +202,7 @@ int finishTest(const int &_argc, const char *_com, const char *_fileName)
         printf(" : %s\n", readLineStr );
 
         if(strstr(readLineStr, "PASS") != NULL){
-            strcpy(result, "PASS");
+            strcpy(result, "/P");
             printf("Find\n");
             break;
         }
