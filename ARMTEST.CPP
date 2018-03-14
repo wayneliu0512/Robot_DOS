@@ -31,6 +31,7 @@ void transferToUpperCase(char * const _str);
 
 int main(int argc, char *argv[], char *envp[])//envp[] 是所有環境變數
 {
+	printf("Version: 1.01.01\n");
     if(strcmp(argv[1], "/s") == 0)//開始測試前執行
     {
         if(startTest(argc, argv[2], argv[3]) == 0)
@@ -101,7 +102,7 @@ int main(int argc, char *argv[], char *envp[])//envp[] 是所有環境變數
         outportb( PORT1, cr[i] );
         printf("%c", cr[i]);
     }
-
+	//sleep(2);
     printf("\n\nComplete \n");
 
     return 0;
